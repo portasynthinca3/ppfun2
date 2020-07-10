@@ -181,20 +181,17 @@ def draw_function(ws, canv_id, draw_x, draw_y, c_start_x, c_start_y, img, defend
                 #  so the server doesn't think we're a bot)
                 time.sleep(0.5 + random.uniform(-0.25, 0.25))
 
-    print(f'{Fore.YELLOW}Done drawing{Style.RESET_ALL}')
+    print(f'{Fore.GREEN}Done drawing{Style.RESET_ALL}')
     if not defend:
         return
-    print(f'{Fore.YELLOW}Entering defend mode{Style.RESET_ALL}')
+    print(f'{Fore.GREEN}Entering defend mode{Style.RESET_ALL}')
 
     # do the same thing, but now in a loop that checks everything once per second
     while True:
         for y in range(size[0]):
             for x in range(size[1]):
-                # we need to compare actual color values and not indicies
-                # because water and land have seprate indicies, but the same color values
-                #  as regular colors
                 if canv_clr[chunk_data[start_in_d_y + y, start_in_d_x + x]] != canv_clr[img[y, x]]:
-                    print(f'{Fore.YELLOW}Placing a pixel at {Fore.GREEN}({x + draw_x}, {y + draw_y}){Style.RESET_ALL}')
+                    print(f'{Fore.YELLOW}[DEFENDING] Placing a pixel at {Fore.GREEN}({x + draw_x}, {y + draw_y}){Style.RESET_ALL}')
                     # get the color index
                     c_idx = img[y, x]
                     # try to draw it
@@ -378,8 +375,8 @@ async def main():
                     rc = data[1]
                     wait = (data[2] << 24) | (data[3] << 16) | (data[4] << 8) | data[5]
                     cd_s = (data[6] << 8) | data[7]
-                    print(f'{Fore.YELLOW}Pixel return{Style.RESET_ALL} (code: {Fore.RED if rc != 0 else Fore.GREEN}{rc}{Style.RESET_ALL}): ' + 
-                          f'wait: {wait} ms {Fore.GREEN}[+{cd_s} s]{Style.RESET_ALL}')
+                    print(f'{Fore.YELLOW}Pixel return{Fore.YELLOW} (code: {Fore.RED if rc != 0 else Fore.GREEN}{rc}{Fore.YELLOW}): ' + 
+                          f'wait: {Fore.GREEN}{wait}{Fore.YELLOW} ms {Fore.GREEN}[+{cd_s} s]{Style.RESET_ALL}')
                     if rc == 10:
                         draw = False
                         print(Fore.RED + 'Place a pixel manually, enter captcha, return here and press enter' + Style.RESET_ALL, end='')
