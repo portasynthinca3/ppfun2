@@ -7,7 +7,7 @@ import asyncio, threading
 import websockets, requests
 import json
 import numpy as np, cv2
-import time, math, random
+import time, datetime, math, random
 import os.path as path
 from playsound import playsound
 from colorama import Fore, Back, Style, init
@@ -19,6 +19,10 @@ draw = True
 
 # chunk data cache
 chunk_data = None
+
+# number of pixels drawn and the starting time
+pixels_drawn = 1
+start_time = None
 
 # play a notification sound
 def play_notification():
@@ -134,7 +138,7 @@ async def place_pixel(ws, d, x, y, c):
 
 # draws the image
 def draw_function(ws, canv_id, draw_x, draw_y, c_start_x, c_start_y, img, defend):
-    global me, draw, chunk_data
+    global me, draw, chunk_data, pixels_drawn, start_time
 
     loop = asyncio.new_event_loop()
     size = img.shape
@@ -144,11 +148,17 @@ def draw_function(ws, canv_id, draw_x, draw_y, c_start_x, c_start_y, img, defend
     start_in_d_x = draw_x + ((canv_sz // 2) - (c_start_x * 256))
     start_in_d_y = draw_y + ((canv_sz // 2) - (c_start_y * 256))
 
+    start_time = datetime.datetime.now()
+
     for y in range(size[0]):
         for x in range(size[1]):
             if chunk_data[start_in_d_y + y, start_in_d_x + x] != img[y, x]:
+                pixels_remaining = (size[0] * size[1]) - (y * size[0] + x)
+                sec_per_px = (datetime.datetime.now() - start_time).total_seconds() / pixels_drawn
+                time_remaining = datetime.timedelta(seconds=(pixels_remaining * sec_per_px))
                 print(f'{Fore.YELLOW}Placing a pixel at {Fore.GREEN}({x + draw_x}, {y + draw_y})' + 
-                        f'{Fore.YELLOW}, progress: {"{:2.4f}".format((y * size[0] + x) * 100 / (size[0] * size[1]))}%{Style.RESET_ALL}')
+                      f'{Fore.YELLOW}, progress: {Fore.GREEN}{"{:2.4f}".format((y * size[0] + x) * 100 / (size[0] * size[1]))}%' +
+                      f'{Fore.YELLOW}, remaining: {Fore.GREEN}{"estimating..." if pixels_drawn < 20 else str(time_remaining)}{Style.RESET_ALL}')
                 # get the color index
                 c_idx = img[y, x]
                 # try to draw it
@@ -157,6 +167,7 @@ def draw_function(ws, canv_id, draw_x, draw_y, c_start_x, c_start_y, img, defend
                     pass
                 draw = False
                 loop.run_until_complete(place_pixel(ws, canv_id, x + draw_x, y + draw_y, c_idx))
+                pixels_drawn += 1
                 # this flag will be reset when the other thread receives a confirmation message
                 while not draw:
                     time.sleep(0.25)
