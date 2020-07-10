@@ -143,6 +143,7 @@ def draw_function(ws, canv_id, draw_x, draw_y, c_start_x, c_start_y, img, defend
     loop = asyncio.new_event_loop()
     size = img.shape
     canv_sz = me['canvases'][str(canv_id)]['size']
+    canv_clr = me['canvases'][str(canv_id)]['colors']
 
     # calculate position in the chunk data array
     start_in_d_x = draw_x + ((canv_sz // 2) - (c_start_x * 256))
@@ -152,7 +153,10 @@ def draw_function(ws, canv_id, draw_x, draw_y, c_start_x, c_start_y, img, defend
 
     for y in range(size[0]):
         for x in range(size[1]):
-            if chunk_data[start_in_d_y + y, start_in_d_x + x] != img[y, x]:
+            # we need to compare actual color values and not indicies
+            # because water and land have seprate indicies, but the same color values
+            #  as regular colors
+            if canv_clr[chunk_data[start_in_d_y + y, start_in_d_x + x]] != canv_clr[img[y, x]]:
                 pixels_remaining = (size[0] * size[1]) - (y * size[0] + x)
                 sec_per_px = (datetime.datetime.now() - start_time).total_seconds() / pixels_drawn
                 time_remaining = datetime.timedelta(seconds=(pixels_remaining * sec_per_px))
@@ -186,7 +190,10 @@ def draw_function(ws, canv_id, draw_x, draw_y, c_start_x, c_start_y, img, defend
     while True:
         for y in range(size[0]):
             for x in range(size[1]):
-                if chunk_data[start_in_d_y + y, start_in_d_x + x] != img[y, x]:
+                # we need to compare actual color values and not indicies
+                # because water and land have seprate indicies, but the same color values
+                #  as regular colors
+                if canv_clr[chunk_data[start_in_d_y + y, start_in_d_x + x]] != canv_clr[img[y, x]]:
                     print(f'{Fore.YELLOW}Placing a pixel at {Fore.GREEN}({x + draw_x}, {y + draw_y}){Style.RESET_ALL}')
                     # get the color index
                     c_idx = img[y, x]
