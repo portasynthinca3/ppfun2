@@ -322,10 +322,12 @@ async def main():
     # load the chunks in the region of the image
     print(f'{Fore.YELLOW}Loading chunk data around the destination{Style.RESET_ALL}')
     csz = me['canvases'][str(canv_id)]['size']
-    c_occupied_y = math.ceil(img.shape[0] / 256)
-    c_occupied_x = math.ceil(img.shape[1] / 256)
     c_start_y = ((csz // 2) + draw_y) // 256
     c_start_x = ((csz // 2) + draw_x) // 256
+    c_end_y = ((csz // 2) + draw_y + img.shape[0]) // 256
+    c_end_x = ((csz // 2) + draw_x + img.shape[1]) // 256
+    c_occupied_y = c_end_y - c_start_y + 1
+    c_occupied_x = c_end_x - c_start_x + 1
     chunk_data = get_chunks(canv_id, c_start_x, c_start_y, c_occupied_x, c_occupied_y)
     # show them
     show_chunks = ''
