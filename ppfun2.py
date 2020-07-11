@@ -277,7 +277,15 @@ async def main():
     for y in range(img_size[0]):
         for x in range(img_size[1]):
             # ignore the pixel if it's transparent
-            if img[y, x][3] > 128:
+            transparent = None
+            if img.shape[2] == 3: # the image doesn't have an alpha channel
+                transparent = False
+            else: # the image has an alpha channel
+                if img[y, x][3] > 128:
+                    transparent = False
+                else:
+                    transparent = True
+            if not transparent:
                 # fetch BGR color
                 bgr = img[y, x]
                 bgr = (int(bgr[0]), int(bgr[1]), int(bgr[2]))
