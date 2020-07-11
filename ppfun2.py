@@ -44,7 +44,11 @@ def get_chunk(d, x, y):
     # construct a numpy array from it
     arr = np.zeros((256, 256), np.uint8)
     for i in range(65536):
-        arr[i // 256, i % 256] = data[i]
+        c = data[i]
+        # protected pixels are shifted up by 128
+        if c >= 128:
+            c = c - 128
+        arr[i // 256, i % 256] = c
     return arr
 
 # gets several map chunks from the server
@@ -71,13 +75,7 @@ def render_chunk(d, x, y):
     # go through the data
     for y in range(256):
         for x in range(256):
-            # convert color number to color
-            c = data[y, x]
-            # protected pixels are shifted up by 128
-            if c >= 128:
-                c = c - 128
-            # the order in OpenCV images is BGR, not RGB
-            r, g, b = colors[c]
+            r, g, b = colors[data[y, x]]
             img[y, x] = (b, g, r)
     return img
 
@@ -89,13 +87,7 @@ def render_map(d, data):
     # go through the data
     for y in range(data.shape[0]):
         for x in range(data.shape[1]):
-            # convert color number to color
-            c = data[y, x]
-            # protected pixels are shifted up by 128
-            if c >= 128:
-                c = c - 128
-            # the order in OpenCV images is BGR, not RGB
-            r, g, b = colors[c]
+            r, g, b = colors[data[y, x]]
             img[y, x] = (b, g, r)
     return img
 
@@ -156,6 +148,8 @@ def draw_function(ws, canv_id, draw_x, draw_y, c_start_x, c_start_y, img, defend
 
     for y in range(size[0]):
         for x in range(size[1]):
+            if img[y, x] == 255:
+                continue
             succ = False
             while not succ:
                 # we need to compare actual color values and not indicies
@@ -198,6 +192,8 @@ def draw_function(ws, canv_id, draw_x, draw_y, c_start_x, c_start_y, img, defend
     while True:
         for y in range(size[0]):
             for x in range(size[1]):
+                if img[y, x] == 255:
+                    continue
                 if canv_clr[chunk_data[start_in_d_y + y, start_in_d_x + x]] != canv_clr[img[y, x]]:
                     print(f'{Fore.YELLOW}[DEFENDING] Placing a pixel at {Fore.GREEN}({x + draw_x}, {y + draw_y}){Style.RESET_ALL}')
                     # get the color index
