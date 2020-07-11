@@ -16,6 +16,8 @@ me = {}
 
 # are we allowed to draw
 draw = True
+# was the last placing of the pixel successful
+succ = False
 
 # chunk data cache
 chunk_data = None
@@ -138,7 +140,7 @@ async def place_pixel(ws, d, x, y, c):
 
 # draws the image
 def draw_function(ws, canv_id, draw_x, draw_y, c_start_x, c_start_y, img, defend):
-    global me, draw, chunk_data, pixels_drawn, start_time
+    global me, draw, succ, chunk_data, pixels_drawn, start_time
 
     loop = asyncio.new_event_loop()
     size = img.shape
@@ -150,36 +152,42 @@ def draw_function(ws, canv_id, draw_x, draw_y, c_start_x, c_start_y, img, defend
     start_in_d_y = draw_y + ((canv_sz // 2) - (c_start_y * 256))
 
     start_time = datetime.datetime.now()
+    draw = True
 
     for y in range(size[0]):
         for x in range(size[1]):
-            # we need to compare actual color values and not indicies
-            # because water and land have seprate indicies, but the same color values
-            #  as regular colors
-            if canv_clr[chunk_data[start_in_d_y + y, start_in_d_x + x]] != canv_clr[img[y, x]]:
-                pixels_remaining = (size[0] * size[1]) - (y * size[0] + x)
-                sec_per_px = (datetime.datetime.now() - start_time).total_seconds() / pixels_drawn
-                time_remaining = datetime.timedelta(seconds=(pixels_remaining * sec_per_px))
-                print(f'{Fore.YELLOW}Placing a pixel at {Fore.GREEN}({x + draw_x}, {y + draw_y})' + 
-                      f'{Fore.YELLOW}, progress: {Fore.GREEN}{"{:2.4f}".format((y * size[0] + x) * 100 / (size[0] * size[1]))}%' +
-                      f'{Fore.YELLOW}, remaining: {Fore.GREEN}{"estimating..." if pixels_drawn < 20 else str(time_remaining)}{Style.RESET_ALL}')
-                # get the color index
-                c_idx = img[y, x]
-                # try to draw it
-                while not draw:
-                    time.sleep(0.25)
-                    pass
-                draw = False
-                loop.run_until_complete(place_pixel(ws, canv_id, x + draw_x, y + draw_y, c_idx))
-                pixels_drawn += 1
-                # this flag will be reset when the other thread receives a confirmation message
-                while not draw:
-                    time.sleep(0.25)
-                    pass
-                # wait half a second
-                # (a little bit of artifical fluctuation
-                #  so the server doesn't think we're a bot)
-                time.sleep(0.5 + random.uniform(-0.25, 0.25))
+            succ = False
+            while not succ:
+                # we need to compare actual color values and not indicies
+                # because water and land have seprate indicies, but the same color values
+                #  as regular colors
+                if canv_clr[chunk_data[start_in_d_y + y, start_in_d_x + x]] != canv_clr[img[y, x]]:
+                    pixels_remaining = (size[0] * size[1]) - (y * size[0] + x)
+                    sec_per_px = (datetime.datetime.now() - start_time).total_seconds() / pixels_drawn
+                    time_remaining = datetime.timedelta(seconds=(pixels_remaining * sec_per_px))
+                    print(f'{Fore.YELLOW}Placing a pixel at {Fore.GREEN}({x + draw_x}, {y + draw_y})' + 
+                        f'{Fore.YELLOW}, progress: {Fore.GREEN}{"{:2.4f}".format((y * size[0] + x) * 100 / (size[0] * size[1]))}%' +
+                        f'{Fore.YELLOW}, remaining: {Fore.GREEN}{"estimating..." if pixels_drawn < 20 else str(time_remaining)}{Style.RESET_ALL}')
+                    # get the color index
+                    c_idx = img[y, x]
+                    # try to draw it
+                    while not draw:
+                        time.sleep(0.25)
+                        pass
+                    draw = False
+                    loop.run_until_complete(place_pixel(ws, canv_id, x + draw_x, y + draw_y, c_idx))
+                    # this flag will be reset when the other thread receives a confirmation message
+                    while not draw:
+                        time.sleep(0.25)
+                        pass
+                    if succ:
+                        pixels_drawn += 1
+                    # wait half a second
+                    # (a little bit of artifical fluctuation
+                    #  so the server doesn't think we're a bot)
+                    time.sleep(0.5 + random.uniform(-0.25, 0.25))
+                else:
+                    succ = True
 
     print(f'{Fore.GREEN}Done drawing{Style.RESET_ALL}')
     if not defend:
@@ -211,7 +219,7 @@ def draw_function(ws, canv_id, draw_x, draw_y, c_start_x, c_start_y, img, defend
         time.sleep(1)
 
 async def main():
-    global me, draw, chunk_data
+    global me, draw, succ, chunk_data
     # initialize colorama
     init()
     # get canvas info list and user identifier
@@ -381,17 +389,17 @@ async def main():
                           f'wait: {Fore.GREEN}{wait}{Fore.YELLOW} ms {Fore.GREEN}[+{cd_s} s]{Style.RESET_ALL}')
                     if rc == 10:
                         draw = False
-                        print(Fore.RED + 'Place a pixel manually, enter captcha, return here and press enter' + Style.RESET_ALL, end='')
-                        # ouch
                         play_notification()
-                        # mash dat enter key
-                        input()
+                        print(Fore.RED + 'Place a pixel somewhere manually and enter CAPTCHA' + Style.RESET_ALL)
+                        time.sleep(2)
+                        succ = False
                         draw = True
                     else:
                         if wait >= 30000:
                             print(f'{Fore.YELLOW}Cooling down{Style.RESET_ALL}')
                             # wait that many seconds plus 1 (to be sure)
                             time.sleep(cd_s + 1)
+                        succ = True
                         draw = True
 
                 # pixel update
