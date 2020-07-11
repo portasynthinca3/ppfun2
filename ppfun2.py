@@ -387,13 +387,17 @@ async def main():
                     cd_s = (data[6] << 8) | data[7]
                     print(f'{Fore.YELLOW}Pixel return{Fore.YELLOW} (code: {Fore.RED if rc != 0 else Fore.GREEN}{rc}{Fore.YELLOW}): ' + 
                           f'wait: {Fore.GREEN}{wait}{Fore.YELLOW} ms {Fore.GREEN}[+{cd_s} s]{Style.RESET_ALL}')
+                    # CAPTCHA error
                     if rc == 10:
                         draw = False
                         play_notification()
                         print(Fore.RED + 'Place a pixel somewhere manually and enter CAPTCHA' + Style.RESET_ALL)
+                    # any error
+                    if rc != 0:
                         time.sleep(2)
                         succ = False
                         draw = True
+                    # placement was successful
                     else:
                         if wait >= 30000:
                             print(f'{Fore.YELLOW}Cooling down{Style.RESET_ALL}')
