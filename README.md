@@ -16,7 +16,7 @@ It draws and defends images automatically. You only need to enter captcha occasi
 5. Navigate to the directory you unpacked the archive in step 1 into. You can do that using the `cd` command.
 6. Run the bot: `python ppfun2.py`.
 7. Follow the instructions. Don't close the command line or the terminal while the bot is running. You still can minimize it, however.
-8. When you hear a breaking pickaxe sound from Minecraft, open PixelPlanet in your browser and place a pixel somewhere. You will be asked to enter CAPTCHA. Enter it, return to the command line/terminal and hit the Enter key.
+8. When you hear a breaking pickaxe sound from Minecraft, open PixelPlanet in your browser and place a pixel somewhere. You will be asked to enter CAPTCHA. Enter it, and the bot should continue drawing/defending.
 
 # It doesn't work
 It would be nice if you could send me the exact text the bot outputs through Issues on GitHub, in Discord (`portasynthinca3#1746`), or through E-Mail (`portasynthinca3@gmail.com`). Feature requests are also accepted.
