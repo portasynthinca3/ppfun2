@@ -8,7 +8,7 @@ import websockets, requests
 import json
 import numpy as np, cv2
 import time, datetime, math, random
-import os.path as path
+import os.path as path, getpass
 from playsound import playsound
 from colorama import Fore, Back, Style, init
 
@@ -219,8 +219,29 @@ async def main():
     # initialize colorama
     init()
     # get canvas info list and user identifier
-    print(f'{Fore.YELLOW}Requesting info{Style.RESET_ALL}')
+    print(f'{Fore.YELLOW}Requesting initial data{Style.RESET_ALL}')
     me = requests.get('https://pixelplanet.fun/api/me').json()
+
+    # authorize
+    print(f'{Fore.YELLOW}Enter your PixelPlanet username or e-mail (leave empty to skip authorization): {Style.RESET_ALL}', end='')
+    login = input()
+    passwd = ''
+    auth_token = ''
+    extra_ws_headers = None
+    if login != '':
+        passwd = getpass.getpass(f'{Fore.YELLOW}Enter your PixelPlanet password: {Style.RESET_ALL}')
+        print(f'{Fore.YELLOW}Authorizing{Style.RESET_ALL}')
+        response = requests.post('https://pixelplanet.fun/api/auth/local', json={'nameoremail':login, 'password':passwd})
+        resp_js = response.json()
+        if 'success' in resp_js and resp_js['success']:
+            print(f'{Fore.YELLOW}Logged in as {Fore.GREEN}{resp_js["me"]["name"]}{Style.RESET_ALL}')
+            # get the token and add it as a WebSocket cookie
+            auth_token = response.cookies.get('pixelplanet.session')
+            extra_ws_headers = websockets.http.Headers({
+                'Cookie': 'pixelplanet.session=' + auth_token
+            })
+        else:
+            print(f'{Fore.RED}Authorization failed{Style.RESET_ALL}')
 
     # request some info from the user
     print(f'{Fore.YELLOW}Enter a path to the image:{Style.RESET_ALL} ', end='')
@@ -321,16 +342,6 @@ async def main():
     if show_preview in ['y', 'yes']:
         show_image(preview)
 
-    start = ''
-    while start not in ['y', 'n', 'yes', 'no']:
-        print(f'{Fore.YELLOW}Draw {Fore.GREEN}{img_path}{Fore.YELLOW} ' +
-              f'at {Fore.GREEN}({draw_x}, {draw_y}){Fore.YELLOW} ' + 
-              f'on canvas {Fore.GREEN}{me["canvases"][str(canv_id)]["title"]} {Fore.YELLOW}[y/n]?{Style.RESET_ALL} ', end='')
-        start = input().lower()
-    # abort if user decided not to draw
-    if start not in ['y', 'yes']:
-        exit()
-
     # load the chunks in the region of the image
     print(f'{Fore.YELLOW}Loading chunk data around the destination{Style.RESET_ALL}')
     csz = me['canvases'][str(canv_id)]['size']
@@ -350,9 +361,19 @@ async def main():
         print(f'{Fore.YELLOW}Processing...{Style.RESET_ALL}')
         show_image(render_map(canv_id, chunk_data))
 
+    start = ''
+    while start not in ['y', 'n', 'yes', 'no']:
+        print(f'{Fore.YELLOW}Draw {Fore.GREEN}{img_path}{Fore.YELLOW} ' +
+              f'at {Fore.GREEN}({draw_x}, {draw_y}){Fore.YELLOW} ' + 
+              f'on canvas {Fore.GREEN}{me["canvases"][str(canv_id)]["title"]} {Fore.YELLOW}[y/n]?{Style.RESET_ALL} ', end='')
+        start = input().lower()
+    # abort if user decided not to draw
+    if start not in ['y', 'yes']:
+        exit()
+
     # start a WebSockets connection
     print(f'{Fore.YELLOW}Connecting to the server{Style.RESET_ALL}')
-    async with websockets.connect('wss://pixelplanet.fun:443/ws') as ws:
+    async with websockets.connect('wss://pixelplanet.fun:443/ws', extra_headers=extra_ws_headers) as ws:
         await select_canvas(ws, canv_id)
         # register the chunks
         for c_y in range(c_occupied_y):
