@@ -234,7 +234,7 @@ async def main():
         # update
         server_ver = server_verdef.split('\n')[0]
         print(f'{Fore.YELLOW}There\'s a new version {Fore.GREEN}{server_ver}{Fore.YELLOW} on the server. Downloading{Style.RESET_ALL}')
-        with open('ppfun2.py', 'w') as bot_file:
+        with open('ppfun2.py', 'wb') as bot_file:
             bot_file.write(requests.get(BOT_URL).content)
     else:
         print(f'{Fore.YELLOW}You\'re running the latest version{Style.RESET_ALL}')
