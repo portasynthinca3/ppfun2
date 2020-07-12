@@ -15,8 +15,8 @@ from colorama import Fore, Back, Style, init
 me = {}
 
 # the version of the bot
-VERSION     = '1.1.0'
-VERSION_NUM = 1
+VERSION     = '1.1.1'
+VERSION_NUM = 2
 
 # the URLs of the current version and c.v. definitions
 BOT_URL    = 'https://raw.githubusercontent.com/portasynthinca3/ppfun2/master/ppfun2.py'
@@ -169,7 +169,8 @@ def draw_function(ws, canv_id, draw_x, draw_y, c_start_x, c_start_y, img, defend
                     time_remaining = datetime.timedelta(seconds=(pixels_remaining * sec_per_px))
                     print(f'{Fore.YELLOW}Placing a pixel at {Fore.GREEN}({x + draw_x}, {y + draw_y})' + 
                         f'{Fore.YELLOW}, progress: {Fore.GREEN}{"{:2.4f}".format((y * size[0] + x) * 100 / (size[0] * size[1]))}%' +
-                        f'{Fore.YELLOW}, remaining: {Fore.GREEN}{"estimating..." if pixels_drawn < 20 else str(time_remaining)}{Style.RESET_ALL}')
+                        f'{Fore.YELLOW}, remaining: {Fore.GREEN}{"estimating" if pixels_drawn < 20 else str(time_remaining)}' +
+                        f'{Fore.YELLOW}, {Fore.GREEN}{pixels_drawn}{Fore.YELLOW} pixels placed{Style.RESET_ALL}')
                     # get the color index
                     c_idx = img[y, x]
                     # try to draw it
