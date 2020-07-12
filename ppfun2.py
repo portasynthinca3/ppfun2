@@ -14,6 +14,14 @@ from colorama import Fore, Back, Style, init
 
 me = {}
 
+# the version of the bot
+VERSION     = '1.1.0'
+VERSION_NUM = 1
+
+# the URLs of the current version and c.v. definitions
+BOT_URL    = 'https://raw.githubusercontent.com/portasynthinca3/ppfun2/master/ppfun2.py'
+VERDEF_URL = 'https://raw.githubusercontent.com/portasynthinca3/ppfun2/master/verdef'
+
 # are we allowed to draw
 draw = True
 # was the last placing of the pixel successful
@@ -218,6 +226,19 @@ async def main():
     global me, draw, succ, chunk_data
     # initialize colorama
     init()
+
+    # get the version on the server
+    print(f'{Fore.YELLOW}PixelPlanet bot by portasynthinca3 version {Fore.GREEN}{VERSION}{Fore.YELLOW}\nChecking for updates{Style.RESET_ALL}')
+    server_verdef = requests.get(VERDEF_URL).text
+    if int(server_verdef.split('\n')[1]) > VERSION_NUM:
+        # update
+        server_ver = server_verdef.split('\n')[0]
+        print(f'{Fore.YELLOW}There\'s a new version {Fore.GREEN}{server_ver}{Fore.YELLOW} on the server. Downloading{Style.RESET_ALL}')
+        with open('ppfun2.py', 'w') as bot_file:
+            bot_file.write(requests.get(BOT_URL).content)
+    else:
+        print(f'{Fore.YELLOW}You\'re running the latest version{Style.RESET_ALL}')
+
     # get canvas info list and user identifier
     print(f'{Fore.YELLOW}Requesting initial data{Style.RESET_ALL}')
     me = requests.get('https://pixelplanet.fun/api/me').json()
