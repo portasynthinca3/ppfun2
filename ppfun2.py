@@ -15,8 +15,8 @@ from colorama import Fore, Back, Style, init
 me = {}
 
 # the version of the bot
-VERSION     = '1.1.1'
-VERSION_NUM = 2
+VERSION     = '1.1.2'
+VERSION_NUM = 3
 
 # the URLs of the current version and c.v. definitions
 BOT_URL    = 'https://raw.githubusercontent.com/portasynthinca3/ppfun2/master/ppfun2.py'
