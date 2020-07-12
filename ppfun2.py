@@ -3,20 +3,48 @@
 # PixelPlanet bot version 2 by portasynthinca3 (now using WebSockets!)
 # Distributed under WTFPL
 
-import asyncio, threading
-import websockets, requests
-import json
-import numpy as np, cv2
+not_inst_libs = []
+
+import threading
+import requests, json
 import time, datetime, math, random
 import os.path as path, getpass
-from playsound import playsound
-from colorama import Fore, Back, Style, init
+
+try:
+    from playsound import playsound
+except ImportError:
+    not_inst_libs.append('playsound')
+
+try:
+    import numpy as np
+except ImportError:
+    not_inst_libs.append('numpy')
+
+try:
+    import cv2
+except ImportError:
+    not_inst_libs.append('opencv-python')
+
+try:
+    import websocket
+except ImportError:
+    not_inst_libs.append('websocket_client')
+
+try:
+    from colorama import Fore, Back, Style, init
+except ImportError:
+    not_inst_libs.append('colorama')
+
+# tell the user to install libraries
+if len(not_inst_libs) > 0:
+    print('Some libraries are not installed. Install them by running this command:\npip install ' + ' '.join(not_inst_libs))
+    exit()
 
 me = {}
 
 # the version of the bot
-VERSION     = '1.1.2'
-VERSION_NUM = 3
+VERSION     = '1.1.3'
+VERSION_NUM = 4
 
 # the URLs of the current version and c.v. definitions
 BOT_URL    = 'https://raw.githubusercontent.com/portasynthinca3/ppfun2/master/ppfun2.py'
@@ -100,26 +128,26 @@ def render_map(d, data):
     return img
 
 # selects a canvas for future use
-async def select_canvas(ws, d):
+def select_canvas(ws, d):
     # construct the data array
     data = bytearray(2)
     data[0] = 0xA0
     data[1] = d
     # send data
-    await ws.send(data)
+    ws.send_binary(data)
 
 # register a chunk
-async def register_chunk(ws, d, x, y):
+def register_chunk(ws, d, x, y):
     # construct the data array
     data = bytearray(3)
     data[0] = 0xA1
     data[1] = x
     data[2] = y
     # send data
-    await ws.send(data)
+    ws.send_binary(data)
 
 # places a pixel
-async def place_pixel(ws, d, x, y, c):
+def place_pixel(ws, d, x, y, c):
     # convert the X and Y coordinates to I, J and Offset
     csz = me['canvases'][str(d)]['size']
     modOffs = (csz // 2) % 256
@@ -136,13 +164,12 @@ async def place_pixel(ws, d, x, y, c):
     data[5] = (offs >>  0) & 0xFF
     data[6] = c
     # send data
-    await ws.send(data)
+    ws.send_binary(data)
 
 # draws the image
 def draw_function(ws, canv_id, draw_x, draw_y, c_start_x, c_start_y, img, defend):
     global me, draw, succ, chunk_data, pixels_drawn, start_time
 
-    loop = asyncio.new_event_loop()
     size = img.shape
     canv_sz = me['canvases'][str(canv_id)]['size']
     canv_clr = me['canvases'][str(canv_id)]['colors']
@@ -178,7 +205,7 @@ def draw_function(ws, canv_id, draw_x, draw_y, c_start_x, c_start_y, img, defend
                         time.sleep(0.25)
                         pass
                     draw = False
-                    loop.run_until_complete(place_pixel(ws, canv_id, x + draw_x, y + draw_y, c_idx))
+                    place_pixel(ws, canv_id, x + draw_x, y + draw_y, c_idx)
                     # this flag will be reset when the other thread receives a confirmation message
                     while not draw:
                         time.sleep(0.25)
@@ -212,7 +239,7 @@ def draw_function(ws, canv_id, draw_x, draw_y, c_start_x, c_start_y, img, defend
                         time.sleep(0.25)
                         pass
                     draw = False
-                    loop.run_until_complete(place_pixel(ws, canv_id, x + draw_x, y + draw_y, c_idx))
+                    place_pixel(ws, canv_id, x + draw_x, y + draw_y, c_idx)
                     # this flag will be reset when the other thread receives a confirmation message
                     while not draw:
                         time.sleep(0.25)
@@ -223,7 +250,7 @@ def draw_function(ws, canv_id, draw_x, draw_y, c_start_x, c_start_y, img, defend
                     time.sleep(0.5 + random.uniform(-0.25, 0.25))
         time.sleep(1)
 
-async def main():
+def main():
     global me, draw, succ, chunk_data
     # initialize colorama
     init()
@@ -251,7 +278,7 @@ async def main():
     login = input()
     passwd = ''
     auth_token = ''
-    extra_ws_headers = None
+    extra_ws_headers = []
     if login != '':
         passwd = getpass.getpass(f'{Fore.YELLOW}Enter your PixelPlanet password: {Style.RESET_ALL}')
         print(f'{Fore.YELLOW}Authorizing{Style.RESET_ALL}')
@@ -261,11 +288,19 @@ async def main():
             print(f'{Fore.YELLOW}Logged in as {Fore.GREEN}{resp_js["me"]["name"]}{Style.RESET_ALL}')
             # get the token and add it as a WebSocket cookie
             auth_token = response.cookies.get('pixelplanet.session')
-            extra_ws_headers = websockets.http.Headers({
-                'Cookie': 'pixelplanet.session=' + auth_token
-            })
+            extra_ws_headers.append("Cookie: pixelplanet.session=" + auth_token)
         else:
             print(f'{Fore.RED}Authorization failed{Style.RESET_ALL}')
+
+    # ask for proxy
+    print(f'{Fore.YELLOW}Enter your proxy (host:port), leave empty to not use a proxy: {Style.RESET_ALL}', end='')
+    proxy_host = input()
+    proxy_port = None
+    if proxy_host != '':
+        proxy_port = int(proxy_host.split(':')[1])
+        proxy_host = proxy_host.split(':')[0]
+    else:
+        proxy_host = None
 
     # request some info from the user
     print(f'{Fore.YELLOW}Enter a path to the image:{Style.RESET_ALL} ', end='')
@@ -397,81 +432,82 @@ async def main():
 
     # start a WebSockets connection
     print(f'{Fore.YELLOW}Connecting to the server{Style.RESET_ALL}')
-    async with websockets.connect('wss://pixelplanet.fun:443/ws', extra_headers=extra_ws_headers) as ws:
-        await select_canvas(ws, canv_id)
-        # register the chunks
-        for c_y in range(c_occupied_y):
-            for c_x in range(c_occupied_x):
-                await register_chunk(ws, canv_id, c_x + c_start_x, c_y + c_start_y)
-        # start drawing
-        thr = threading.Thread(target=draw_function, args=(ws, canv_id, draw_x, draw_y, c_start_x, c_start_y, color_idxs, defend), name='Drawing thread')
-        thr.start()
-        # read server messages
-        while True:
-            data = await ws.recv()
-            # text data = chat message
-            if type(data) == str:
-                # data comes as a JS array
-                msg = json.loads('{"msg":' + data + '}')
-                msg = msg['msg']
-                print(f'{Fore.GREEN}{msg[0]}{Fore.YELLOW} (country: {Fore.GREEN}{msg[2]}{Fore.YELLOW}) ' + 
-                      f'says: {Fore.GREEN}{msg[1]}{Fore.YELLOW} in chat {Fore.GREEN}{"int" if msg[2] == 0 else "en"}{Style.RESET_ALL}')
-            # binary data = event
-            else:
-                opcode = data[0]
-                # online counter
-                if opcode == 0xA7:
-                    oc = (data[1] << 8) | data[2]
-                    print(f'{Fore.YELLOW}Online counter: {Fore.GREEN}{oc}{Style.RESET_ALL}')
+    ws = websocket.create_connection('wss://pixelplanet.fun:443/ws', header=extra_ws_headers, http_proxy_host=proxy_host, http_proxy_port=proxy_port)
+    select_canvas(ws, canv_id)
+    # register the chunks
+    for c_y in range(c_occupied_y):
+        for c_x in range(c_occupied_x):
+            register_chunk(ws, canv_id, c_x + c_start_x, c_y + c_start_y)
+    # start drawing
+    thr = threading.Thread(target=draw_function, args=(ws, canv_id, draw_x, draw_y, c_start_x, c_start_y, color_idxs, defend), name='Drawing thread')
+    thr.start()
+    # read server messages
+    while True:
+        data = ws.recv()
+        # text data = chat message
+        if type(data) == str:
+            # data comes as a JS array
+            msg = json.loads('{"msg":' + data + '}')
+            msg = msg['msg']
+            print(f'{Fore.GREEN}{msg[0]}{Fore.YELLOW} (country: {Fore.GREEN}{msg[2]}{Fore.YELLOW}) ' + 
+                    f'says: {Fore.GREEN}{msg[1]}{Fore.YELLOW} in chat {Fore.GREEN}{"int" if msg[2] == 0 else "en"}{Style.RESET_ALL}')
+        # binary data = event
+        else:
+            opcode = data[0]
+            # online counter
+            if opcode == 0xA7:
+                oc = (data[1] << 8) | data[2]
+                print(f'{Fore.YELLOW}Online counter: {Fore.GREEN}{oc}{Style.RESET_ALL}')
 
-                # total cooldown packet
-                elif opcode == 0xC2:
-                    cd = (data[4] << 24) | (data[3] << 16) | (data[2] << 8) | data[1]
-                    print(f'{Fore.YELLOW}Total cooldown: {Fore.GREEN}{cd} ms{Style.RESET_ALL}')
+            # total cooldown packet
+            elif opcode == 0xC2:
+                cd = (data[4] << 24) | (data[3] << 16) | (data[2] << 8) | data[1]
+                print(f'{Fore.YELLOW}Total cooldown: {Fore.GREEN}{cd} ms{Style.RESET_ALL}')
 
-                # pixel return packet
-                elif opcode == 0xC3:
-                    rc = data[1]
-                    wait = (data[2] << 24) | (data[3] << 16) | (data[4] << 8) | data[5]
-                    cd_s = (data[6] << 8) | data[7]
-                    print(f'{Fore.YELLOW}Pixel return{Fore.YELLOW} (code: {Fore.RED if rc != 0 else Fore.GREEN}{rc}{Fore.YELLOW}): ' + 
-                          f'wait: {Fore.GREEN}{wait}{Fore.YELLOW} ms {Fore.GREEN}[+{cd_s} s]{Style.RESET_ALL}')
-                    # CAPTCHA error
-                    if rc == 10:
-                        draw = False
-                        play_notification()
-                        print(Fore.RED + 'Place a pixel somewhere manually and enter CAPTCHA' + Style.RESET_ALL)
-                    # any error
-                    if rc != 0:
-                        time.sleep(2)
-                        succ = False
-                        draw = True
-                    # placement was successful
-                    else:
-                        if wait >= 30000:
-                            print(f'{Fore.YELLOW}Cooling down{Style.RESET_ALL}')
-                            # wait that many seconds plus 1 (to be sure)
-                            time.sleep(cd_s + 1)
-                        succ = True
-                        draw = True
-
-                # pixel update
-                elif opcode == 0xC1:
-                    # get raw data
-                    i = data[1]
-                    j = data[2]
-                    offs = (data[3] << 16) | (data[4] << 8) | data[5]
-                    clr = data[6]
-                    # convert it to X and Y coords
-                    csz = me['canvases'][str(canv_id)]['size']
-                    x = ((i * 256) - (csz // 2)) + (offs & 0xFF)
-                    y = ((j * 256) - (csz // 2)) + ((offs >> 8) & 0xFF)
-                    print(f'{Fore.YELLOW}Pixel update at {Fore.GREEN}({str(x)}, {str(y)}){Style.RESET_ALL}')
-                    # write that change
-                    local_x = (i - c_start_x) * 256 + (offs & 0xFF)
-                    local_y = (j - c_start_y) * 256 + ((offs >> 8) & 0xFF)
-                    chunk_data[local_y, local_x] = clr
+            # pixel return packet
+            elif opcode == 0xC3:
+                rc = data[1]
+                wait = (data[2] << 24) | (data[3] << 16) | (data[4] << 8) | data[5]
+                cd_s = (data[6] << 8) | data[7]
+                print(f'{Fore.YELLOW}Pixel return{Fore.YELLOW} (code: {Fore.RED if rc != 0 else Fore.GREEN}{rc}{Fore.YELLOW}): ' + 
+                        f'wait: {Fore.GREEN}{wait}{Fore.YELLOW} ms {Fore.GREEN}[+{cd_s} s]{Style.RESET_ALL}')
+                # CAPTCHA error
+                if rc == 10:
+                    draw = False
+                    play_notification()
+                    print(Fore.RED + 'Place a pixel somewhere manually and enter CAPTCHA' + Style.RESET_ALL)
+                # any error
+                if rc != 0:
+                    time.sleep(2)
+                    succ = False
+                    draw = True
+                # placement was successful
                 else:
-                    print(f'{Fore.RED}Unreconized data opcode from the server. Raw data: {data}{Style.RESET_ALL}')
+                    if wait >= 30000:
+                        print(f'{Fore.YELLOW}Cooling down{Style.RESET_ALL}')
+                        # wait that many seconds plus 1 (to be sure)
+                        time.sleep(cd_s + 1)
+                    succ = True
+                    draw = True
 
-asyncio.get_event_loop().run_until_complete(main())
+            # pixel update
+            elif opcode == 0xC1:
+                # get raw data
+                i = data[1]
+                j = data[2]
+                offs = (data[3] << 16) | (data[4] << 8) | data[5]
+                clr = data[6]
+                # convert it to X and Y coords
+                csz = me['canvases'][str(canv_id)]['size']
+                x = ((i * 256) - (csz // 2)) + (offs & 0xFF)
+                y = ((j * 256) - (csz // 2)) + ((offs >> 8) & 0xFF)
+                print(f'{Fore.YELLOW}Pixel update at {Fore.GREEN}({str(x)}, {str(y)}){Style.RESET_ALL}')
+                # write that change
+                local_x = (i - c_start_x) * 256 + (offs & 0xFF)
+                local_y = (j - c_start_y) * 256 + ((offs >> 8) & 0xFF)
+                chunk_data[local_y, local_x] = clr
+            else:
+                print(f'{Fore.RED}Unreconized data opcode from the server. Raw data: {data}{Style.RESET_ALL}')
+
+if __name__ == "__main__":
+    main()

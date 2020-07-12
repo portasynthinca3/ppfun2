@@ -15,8 +15,7 @@ It draws and defends images automatically. You only need to enter captcha occasi
     1. Windows. [Download](https://www.python.org/downloads/) an installer. Run it. Be sure to check the `Add Python to PATH` checkmark on the first screen.
     2. Linux. Depends on your distribution and the packet manager you use. For most popular distros including Ubuntu it's `sudo apt install python`, for Manjaro it's `sudo pacman -S python`.
 3. Open the terminal/command line
-4. Install the libraries: `pip install websockets opencv-python colorama playsound`
-    1. note: I might have forgotten some libraries. In this case, if the program displays a message like `no module named xyz`, please run `pip install xyz` (`xyz` being the module name), and report this to me.
+4. Install the libraries: `pip install websocket_client opencv-python colorama playsound`
 5. Navigate to the directory you unpacked the archive in step 1 into. You can do that using the `cd` command.
 6. Run the bot: `python ppfun2.py`.
 7. Follow the instructions. Don't close the command line or the terminal while the bot is running. You still can minimize it, however.
