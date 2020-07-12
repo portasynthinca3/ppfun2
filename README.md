@@ -1,8 +1,11 @@
 # ppfun2
 **ppfun2** is a [PixelPlanet.Fun](https://pixelplanet.fun/) bot.
 
-![](promo.png)
-![](promo_res.png)
+![](promo.png)\
+*Bot configuration and startup*
+
+![](promo_res.png)\
+*All four images in this shot were drawn by me and my friend using this bot*
 
 It draws and defends images automatically. You only need to enter captcha occasionally when the bot plays a sound notification.
 
