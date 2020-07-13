@@ -43,8 +43,8 @@ if len(not_inst_libs) > 0:
 me = {}
 
 # the version of the bot
-VERSION     = '1.1.3'
-VERSION_NUM = 4
+VERSION     = '1.1.4'
+VERSION_NUM = 5
 
 # the URLs of the current version and c.v. definitions
 BOT_URL    = 'https://raw.githubusercontent.com/portasynthinca3/ppfun2/master/ppfun2.py'
@@ -167,12 +167,28 @@ def place_pixel(ws, d, x, y, c):
     ws.send_binary(data)
 
 # draws the image
-def draw_function(ws, canv_id, draw_x, draw_y, c_start_x, c_start_y, img, defend):
+def draw_function(ws, canv_id, draw_x, draw_y, c_start_x, c_start_y, img, defend, strategy):
     global me, draw, succ, chunk_data, pixels_drawn, start_time
 
     size = img.shape
     canv_sz = me['canvases'][str(canv_id)]['size']
     canv_clr = me['canvases'][str(canv_id)]['colors']
+
+    # fill a list of coordinates based on the strategy
+    coords = []
+    if strategy == 'forward':
+        for y in range(size[0]):
+            for x in range(size[1]):
+                coords.append((x, y))
+    elif strategy == 'backward':
+        for y in range(size[0] - 1, -1, -1):
+            for x in range(size[1] - 1, -1, -1):
+                coords.append((x, y))
+    elif strategy == 'random':
+        for y in range(size[0]):
+            for x in range(size[1]):
+                coords.append((x, y))
+        random.shuffle(coords)
 
     # calculate position in the chunk data array
     start_in_d_x = draw_x + ((canv_sz // 2) - (c_start_x * 256))
@@ -181,43 +197,49 @@ def draw_function(ws, canv_id, draw_x, draw_y, c_start_x, c_start_y, img, defend
     start_time = datetime.datetime.now()
     draw = True
 
-    for y in range(size[0]):
-        for x in range(size[1]):
-            if img[y, x] == 255:
-                continue
-            succ = False
-            while not succ:
-                # we need to compare actual color values and not indicies
-                # because water and land have seprate indicies, but the same color values
-                #  as regular colors
-                if canv_clr[chunk_data[start_in_d_y + y, start_in_d_x + x]] != canv_clr[img[y, x]]:
-                    pixels_remaining = (size[0] * size[1]) - (y * size[0] + x)
-                    sec_per_px = (datetime.datetime.now() - start_time).total_seconds() / pixels_drawn
-                    time_remaining = datetime.timedelta(seconds=(pixels_remaining * sec_per_px))
-                    print(f'{Fore.YELLOW}Placing a pixel at {Fore.GREEN}({x + draw_x}, {y + draw_y})' + 
-                        f'{Fore.YELLOW}, progress: {Fore.GREEN}{"{:2.4f}".format((y * size[0] + x) * 100 / (size[0] * size[1]))}%' +
-                        f'{Fore.YELLOW}, remaining: {Fore.GREEN}{"estimating" if pixels_drawn < 20 else str(time_remaining)}' +
-                        f'{Fore.YELLOW}, {Fore.GREEN}{pixels_drawn}{Fore.YELLOW} pixels placed{Style.RESET_ALL}')
-                    # get the color index
-                    c_idx = img[y, x]
-                    # try to draw it
-                    while not draw:
-                        time.sleep(0.25)
-                        pass
-                    draw = False
-                    place_pixel(ws, canv_id, x + draw_x, y + draw_y, c_idx)
-                    # this flag will be reset when the other thread receives a confirmation message
-                    while not draw:
-                        time.sleep(0.25)
-                        pass
-                    if succ:
-                        pixels_drawn += 1
-                    # wait half a second
-                    # (a little bit of artifical fluctuation
-                    #  so the server doesn't think we're a bot)
-                    time.sleep(0.5 + random.uniform(-0.25, 0.25))
-                else:
-                    succ = True
+    while len(coords) > 0:
+        # get a coordinate
+        coord = coords[0]
+        x, y = (coord)
+        coords.remove(coord)
+
+        # check if the pixel is transparent
+        if img[y, x] == 255:
+            continue
+
+        succ = False
+        while not succ:
+            # we need to compare actual color values and not indicies
+            # because water and land have seprate indicies, but the same color values
+            #  as regular colors
+            if canv_clr[chunk_data[start_in_d_y + y, start_in_d_x + x]] != canv_clr[img[y, x]]:
+                pixels_remaining = len(coords)
+                sec_per_px = (datetime.datetime.now() - start_time).total_seconds() / pixels_drawn
+                time_remaining = datetime.timedelta(seconds=(pixels_remaining * sec_per_px))
+                print(f'{Fore.YELLOW}Placing a pixel at {Fore.GREEN}({x + draw_x}, {y + draw_y})' + 
+                    f'{Fore.YELLOW}, progress: {Fore.GREEN}{"{:2.4f}".format((y * size[0] + x) * 100 / (size[0] * size[1]))}%' +
+                    f'{Fore.YELLOW}, remaining: {Fore.GREEN}{"estimating" if pixels_drawn < 20 else str(time_remaining)}' +
+                    f'{Fore.YELLOW}, {Fore.GREEN}{pixels_drawn}{Fore.YELLOW} pixels placed{Style.RESET_ALL}')
+                # get the color index
+                c_idx = img[y, x]
+                # try to draw it
+                while not draw:
+                    time.sleep(0.25)
+                    pass
+                draw = False
+                place_pixel(ws, canv_id, x + draw_x, y + draw_y, c_idx)
+                # this flag will be reset when the other thread receives a confirmation message
+                while not draw:
+                    time.sleep(0.25)
+                    pass
+                if succ:
+                    pixels_drawn += 1
+                # wait half a second
+                # (a little bit of artifical fluctuation
+                #  so the server doesn't think we're a bot)
+                time.sleep(0.5 + random.uniform(-0.25, 0.25))
+            else:
+                succ = True
 
     print(f'{Fore.GREEN}Done drawing{Style.RESET_ALL}')
     if not defend:
@@ -311,12 +333,21 @@ def main():
     print(f'{Fore.YELLOW}Enter the Y coordiante of the top-left corner:{Style.RESET_ALL} ', end='')
     draw_y = int(input())
 
+    # defend the image?
     defend = ''
     while defend not in ['y', 'n', 'yes', 'no']:
         print(f'{Fore.YELLOW}Defend [y, n]?{Style.RESET_ALL} ', end='')
         defend = input().lower()
     defend = True if defend in ['y', 'yes'] else False
+
+    # choose a strategy
+    strategies = ['forward', 'backward', 'random']
+    strategy = None
+    while strategy not in strategies:
+        print(f'{Fore.YELLOW}Choose the drawing strategy [forward/backward/random]:{Style.RESET_ALL} ', end='')
+        strategy = input().lower()
     
+    # choose the canvas
     canv_id = -1
     while str(canv_id) not in me['canvases']:
         print(Fore.YELLOW + '\n'.join(['[' + (Fore.GREEN if ("v" not in me["canvases"][k]) else Fore.RED) + f'{k}{Fore.YELLOW}] ' +
@@ -439,7 +470,7 @@ def main():
         for c_x in range(c_occupied_x):
             register_chunk(ws, canv_id, c_x + c_start_x, c_y + c_start_y)
     # start drawing
-    thr = threading.Thread(target=draw_function, args=(ws, canv_id, draw_x, draw_y, c_start_x, c_start_y, color_idxs, defend), name='Drawing thread')
+    thr = threading.Thread(target=draw_function, args=(ws, canv_id, draw_x, draw_y, c_start_x, c_start_y, color_idxs, defend, strategy), name='Drawing thread')
     thr.start()
     # read server messages
     while True:
