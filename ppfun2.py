@@ -1,12 +1,12 @@
 #!/usr/bin/env python3
 
-# PixelPlanet bot version 2 by portasynthinca3 (now using WebSockets!)
+# PixelPlanet bot version 2 by portasynthinca3 (now using WebSocket!)
 # Distributed under WTFPL
 
 not_inst_libs = []
 
-import threading
-import requests, json
+import sys, threading
+import requests, json, pickle
 import time, datetime, math, random
 import os.path as path, getpass
 
@@ -43,16 +43,16 @@ if len(not_inst_libs) > 0:
 me = {}
 
 # the version of the bot
-VERSION     = '1.1.4'
-VERSION_NUM = 5
+VERSION     = '1.1.5'
+VERSION_NUM = 6
 
-# the URLs of the current version and c.v. definitions
+# URLs of the current version and c.v. definitions
 BOT_URL    = 'https://raw.githubusercontent.com/portasynthinca3/ppfun2/master/ppfun2.py'
 VERDEF_URL = 'https://raw.githubusercontent.com/portasynthinca3/ppfun2/master/verdef'
 
 # are we allowed to draw
 draw = True
-# was the last placing of the pixel successful
+# was the last placement of a pixel successful
 succ = False
 
 # chunk data cache
@@ -61,6 +61,33 @@ chunk_data = None
 # number of pixels drawn and the starting time
 pixels_drawn = 1
 start_time = None
+
+# configuration
+class PpfunConfigAuth(object):
+    def __init__(self):
+        self.login = ''
+        self.password = ''
+class PpfunConfigProxy(object):
+    def __init__(self):
+        self.host = ''
+        self.port = 0
+        self.user = ''
+        self.passwd = ''
+class PpfunConfigImage(object):
+    def __init__(self):
+        self.path = ''
+        self.x = 0
+        self.y = 0
+        self.defend = False
+        self.strategy = ''
+        self.canv_id = 0
+class PpfunConfig(object):
+    def __init__(self):
+        self.auth  = PpfunConfigAuth()
+        self.proxy = PpfunConfigProxy()
+        self.image = PpfunConfigImage()
+
+config = None
 
 # play a notification sound
 def play_notification():
@@ -102,7 +129,7 @@ def get_chunks(d, xs, ys, w, h):
         data = np.concatenate((data, row), axis=0)
     return data
 
-# renders chunk as colored CV2 image
+# renders a chunk as a colored CV2 image
 def render_chunk(d, x, y):
     global me
     data = get_chunk(d, x, y)
@@ -115,7 +142,7 @@ def render_chunk(d, x, y):
             img[y, x] = (b, g, r)
     return img
 
-# renders map data into a colored CV2 image
+# renders map data as a colored CV2 image
 def render_map(d, data):
     global me
     img = np.zeros((data.shape[0], data.shape[1], 3), np.uint8)
@@ -129,7 +156,6 @@ def render_map(d, data):
 
 # selects a canvas for future use
 def select_canvas(ws, d):
-    # construct the data array
     data = bytearray(2)
     data[0] = 0xA0
     data[1] = d
@@ -138,7 +164,6 @@ def select_canvas(ws, d):
 
 # register a chunk
 def register_chunk(ws, d, x, y):
-    # construct the data array
     data = bytearray(3)
     data[0] = 0xA1
     data[1] = x
@@ -273,7 +298,7 @@ def draw_function(ws, canv_id, draw_x, draw_y, c_start_x, c_start_y, img, defend
         time.sleep(1)
 
 def main():
-    global me, draw, succ, chunk_data
+    global me, draw, succ, chunk_data, config
     # initialize colorama
     init()
 
@@ -290,21 +315,141 @@ def main():
         exit()
     else:
         print(f'{Fore.YELLOW}You\'re running the latest version{Style.RESET_ALL}')
+        print(f'{Fore.RED}WARNING: THIS IS A DEEPLY EXPERIMENTAL UPDATE. Please email/discord me if you find ANY issues. Feel free to remove the auto-update section (starting around line 306) and downgrade manually, though{Style.RESET_ALL}')
 
     # get canvas info list and user identifier
     print(f'{Fore.YELLOW}Requesting initial data{Style.RESET_ALL}')
     me = requests.get('https://pixelplanet.fun/api/me').json()
 
+    # try to load the config file
+    try:
+        config_path = ' '.join(sys.argv[1:])
+        with open(config_path, 'rb') as cf:
+            config = pickle.load(cf)
+    except:
+        config = PpfunConfig()
+
+    if config.image.path == "":
+        # ask for login and password
+        print(f'{Fore.YELLOW}Enter your PixelPlanet username or e-mail (leave empty to skip authorization): {Style.RESET_ALL}', end='')
+        config.auth.login = input()
+        config.auth.passwd = ''
+        auth_token = ''
+        if config.auth.login != '':
+            config.auth.passwd = getpass.getpass(f'{Fore.YELLOW}Enter your PixelPlanet password: {Style.RESET_ALL}')
+
+        # ask for proxy
+        print(f'{Fore.YELLOW}Enter your proxy (host:port), leave empty to not use a proxy: {Style.RESET_ALL}', end='')
+        config.proxy.host = input()
+        config.proxy.port = None
+        config.proxy.user = ''
+        config.proxy.passwd = ''
+        if config.proxy.host != '':
+            config.proxy.port = int(config.proxy.host.split(':')[1])
+            config.proxy.host = config.proxy.host.split(':')[0]
+
+            print(f'{Fore.YELLOW}Enter your proxy username: {Style.RESET_ALL}', end='')
+            config.proxy.user = input()
+            config.proxy.passwd = getpass.getpass(f'{Fore.YELLOW}Enter your proxy password: {Style.RESET_ALL}')
+
+        # request some info from the user
+        print(f'{Fore.YELLOW}Enter a path to the image:{Style.RESET_ALL} ', end='')
+        config.image.path = input()
+
+        print(f'{Fore.YELLOW}Enter the X coordiante of the top-left corner:{Style.RESET_ALL} ', end='')
+        config.image.x = int(input())
+        print(f'{Fore.YELLOW}Enter the Y coordiante of the top-left corner:{Style.RESET_ALL} ', end='')
+        config.image.y = int(input())
+
+        # defend the image?
+        config.image.defend = ''
+        while config.image.defend not in ['y', 'n', 'yes', 'no']:
+            print(f'{Fore.YELLOW}Defend [y, n]?{Style.RESET_ALL} ', end='')
+            config.image.defend = input().lower()
+        config.image.defend = config.image.defend if config.image.defend in ['y', 'yes'] else False
+
+        # choose a strategy
+        strategies = ['forward', 'backward', 'random']
+        config.image.strategy = None
+        while config.image.strategy not in strategies:
+            print(f'{Fore.YELLOW}Choose the drawing strategy [forward/backward/random]:{Style.RESET_ALL} ', end='')
+            config.image.strategy = input().lower()
+        
+        # choose the canvas
+        config.image.canv_id = -1
+        while str(config.image.canv_id) not in me['canvases']:
+            print(Fore.YELLOW + '\n'.join(['[' + (Fore.GREEN if ("v" not in me["canvases"][k]) else Fore.RED) + f'{k}{Fore.YELLOW}] ' +
+                                            me['canvases'][k]['title'] for k in me['canvases']]))
+            print(f'Select the canvas [0-{len(me["canvases"]) - 1}]:{Style.RESET_ALL} ', end='')
+            config.image.canv_id = input()
+            if 0 <= int(config.image.canv_id) <= len(me['canvases']) - 1:
+                if 'v' in me['canvases'][config.image.canv_id]:
+                    print(Fore.RED + 'Only 2D canvases are supported' + Style.RESET_ALL)
+                    config.image.canv_id = -1
+        config.image.canv_id = int(config.image.canv_id)
+
+        # save the config
+        print(f'{Fore.YELLOW}Enter the configuration preset name (leave empty to not save configuration):{Style.RESET_ALL} ', end='')
+        config_path = input()
+        if config_path != '':
+            config_path = config_path + '.pickle'
+            with open(config_path, 'wb') as cf:
+                pickle.dump(config, cf)
+            print(f'{Fore.YELLOW}Configuration was saved. Run {Fore.GREEN}python ppfun2.py {config_path}{Fore.YELLOW} next time to load it{Style.RESET_ALL} ')
+
+    # load the image
+    canv_desc = me['canvases'][str(config.image.canv_id)]
+    print(f'{Fore.YELLOW}Loading the image{Style.RESET_ALL}')
+    img = None
+    img_size = (0, 0)
+    try:
+        config.image.path = path.expanduser(config.image.path)
+        img = cv2.imread(config.image.path, cv2.IMREAD_UNCHANGED)
+        img_size = img.shape[:2]
+    except:
+        print(f'{Fore.RED}Failed to load the image. Does it exist? Is it an obscure image format?{Style.RESET_ALL}')
+        exit()
+    # check if it's JPEG
+    img_extension = path.splitext(config.image.path)[1]
+    if img_extension in ['jpeg', 'jpg']:
+        print(f'{Fore.RED}WARNING: you appear to have loaded a JPEG image. It uses lossy compression, so it\'s not good at all for pixel-art.{Style.RESET_ALL}')
+    
+    # transform the colors
+    print(f'{Fore.YELLOW}Processing the image{Style.RESET_ALL}')
+    color_idxs = np.zeros(img_size, np.uint8)
+    for y in range(img_size[0]):
+        for x in range(img_size[1]):
+            # ignore the pixel if it's transparent
+            transparent = None
+            if img.shape[2] == 3: # the image doesn't have an alpha channel
+                transparent = False
+            else: # the image has an alpha channel
+                transparent = img[y, x][3] <= 128
+            if not transparent:
+                # fetch BGR color
+                bgr = img[y, x]
+                bgr = (int(bgr[0]), int(bgr[1]), int(bgr[2]))
+                # find the nearest one in the palette
+                best_diff = 100000000000000
+                best_no = 0
+                # ignore the first "cli" colors, they show key background and are not allowed in the request
+                for i in range(canv_desc['cli'], len(canv_desc['colors'])):
+                    c_bgr = tuple(canv_desc['colors'][i])
+                    diff = (c_bgr[2] - bgr[0]) ** 2 + (c_bgr[1] - bgr[1]) ** 2 + (c_bgr[0] - bgr[2]) ** 2
+                    if diff < best_diff:
+                        best_diff = diff
+                        best_no = i
+                # store the color idx
+                color_idxs[y, x] = best_no
+
     # authorize
-    print(f'{Fore.YELLOW}Enter your PixelPlanet username or e-mail (leave empty to skip authorization): {Style.RESET_ALL}', end='')
-    login = input()
-    passwd = ''
-    auth_token = ''
     extra_ws_headers = []
-    if login != '':
-        passwd = getpass.getpass(f'{Fore.YELLOW}Enter your PixelPlanet password: {Style.RESET_ALL}')
+    if config.auth.login != '':
         print(f'{Fore.YELLOW}Authorizing{Style.RESET_ALL}')
-        response = requests.post('https://pixelplanet.fun/api/auth/local', json={'nameoremail':login, 'password':passwd})
+        response = requests.post('https://pixelplanet.fun/api/auth/local', json={
+            'nameoremail':config.auth.login,
+            'password':config.auth.passwd
+        })
         resp_js = response.json()
         if 'success' in resp_js and resp_js['success']:
             print(f'{Fore.YELLOW}Logged in as {Fore.GREEN}{resp_js["me"]["name"]}{Style.RESET_ALL}')
@@ -313,164 +458,31 @@ def main():
             extra_ws_headers.append("Cookie: pixelplanet.session=" + auth_token)
         else:
             print(f'{Fore.RED}Authorization failed{Style.RESET_ALL}')
+            exit()
 
-    # ask for proxy
-    print(f'{Fore.YELLOW}Enter your proxy (host:port), leave empty to not use a proxy: {Style.RESET_ALL}', end='')
-    proxy_host = input()
-    proxy_port = None
-    if proxy_host != '':
-        proxy_port = int(proxy_host.split(':')[1])
-        proxy_host = proxy_host.split(':')[0]
-    else:
-        proxy_host = None
-
-    # request some info from the user
-    print(f'{Fore.YELLOW}Enter a path to the image:{Style.RESET_ALL} ', end='')
-    img_path = input()
-
-    print(f'{Fore.YELLOW}Enter the X coordiante of the top-left corner:{Style.RESET_ALL} ', end='')
-    draw_x = int(input())
-    print(f'{Fore.YELLOW}Enter the Y coordiante of the top-left corner:{Style.RESET_ALL} ', end='')
-    draw_y = int(input())
-
-    # defend the image?
-    defend = ''
-    while defend not in ['y', 'n', 'yes', 'no']:
-        print(f'{Fore.YELLOW}Defend [y, n]?{Style.RESET_ALL} ', end='')
-        defend = input().lower()
-    defend = True if defend in ['y', 'yes'] else False
-
-    # choose a strategy
-    strategies = ['forward', 'backward', 'random']
-    strategy = None
-    while strategy not in strategies:
-        print(f'{Fore.YELLOW}Choose the drawing strategy [forward/backward/random]:{Style.RESET_ALL} ', end='')
-        strategy = input().lower()
-    
-    # choose the canvas
-    canv_id = -1
-    while str(canv_id) not in me['canvases']:
-        print(Fore.YELLOW + '\n'.join(['[' + (Fore.GREEN if ("v" not in me["canvases"][k]) else Fore.RED) + f'{k}{Fore.YELLOW}] ' +
-                                           me['canvases'][k]['title'] for k in me['canvases']]))
-        print(f'Select the canvas [0-{len(me["canvases"]) - 1}]:{Style.RESET_ALL} ', end='')
-        canv_id = input()
-        if 0 <= int(canv_id) <= len(me['canvases']) - 1:
-            if 'v' in me['canvases'][canv_id]:
-                print(Fore.RED + 'This canvas is not supported, only 2D canvases are supported' + Style.RESET_ALL)
-                canv_id = -1
-
-    canv_desc = me['canvases'][canv_id]
-    canv_id = int(canv_id)
-
-    # load the image
-    print(f'{Fore.YELLOW}Loading the image{Style.RESET_ALL}')
-    img = None
-    img_size = (0, 0)
-    try:
-        img = cv2.imread(img_path, cv2.IMREAD_UNCHANGED)
-        img_size = img.shape[:2]
-    except:
-        print(f'{Fore.RED}Failed to load the image. Does it exist? Is it an obscure image format?{Style.RESET_ALL}')
-        exit()
-    # check if it's JPEG
-    img_extension = path.splitext(img_path)[1]
-    if img_extension in ['jpeg', 'jpg']:
-        print(f'{Fore.RED}WARNING: you appear to have loaded a JPEG image. It uses lossy compression, so it\'s not good at all for pixel-art.{Style.RESET_ALL}')
-    
-    # transform the colors
-    print(f'{Fore.YELLOW}Processing the image{Style.RESET_ALL}')
-    color_idxs = np.zeros(img_size, np.uint8)
-    preview = np.zeros((img_size[0], img_size[1], 4), np.uint8)
-    for y in range(img_size[0]):
-        for x in range(img_size[1]):
-            # ignore the pixel if it's transparent
-            transparent = None
-            if img.shape[2] == 3: # the image doesn't have an alpha channel
-                transparent = False
-            else: # the image has an alpha channel
-                if img[y, x][3] > 128:
-                    transparent = False
-                else:
-                    transparent = True
-            if not transparent:
-                # fetch BGR color
-                bgr = img[y, x]
-                bgr = (int(bgr[0]), int(bgr[1]), int(bgr[2]))
-                # find the nearest one in the palette
-                best_diff = 1000000000
-                best_no = 0
-                # ignore the first two colors, they show the land a water colors and are not allowed in the request
-                for i in range(2, len(canv_desc['colors'])):
-                    c_bgr = tuple(canv_desc['colors'][i])
-                    diff = (c_bgr[2] - bgr[0]) ** 2 + (c_bgr[1] - bgr[1]) ** 2 + (c_bgr[0] - bgr[2]) ** 2
-                    if diff < best_diff:
-                        best_diff = diff
-                        best_no = i
-                # store the color idx
-                color_idxs[y, x] = best_no
-                # store the color for preview
-                preview[y, x] = tuple(canv_desc['colors'][best_no] + [255])
-                # PixelPlanet uses RGB, OpenCV uses BGR, need to swap
-                temp = preview[y, x][2]
-                preview[y, x][2] = preview[y, x][0]
-                preview[y, x][0] = temp
-            else:
-                # checkerboard pattern in transparent parts of the image
-                brightness = 0
-                if y % 10 >= 5:
-                    brightness = 128 if x % 10 >= 5 else  64
-                else:
-                    brightness = 64  if x % 10 >= 5 else 128
-                preview[y, x] = (brightness, brightness, brightness, 255)
-                color_idxs[y, x] = 255
-
-    # show the preview
-    show_preview = ''
-    while show_preview not in ['y', 'n', 'yes', 'no']:
-        print(f'{Fore.YELLOW}Show the preview [y/n]?{Style.RESET_ALL} ', end='')
-        show_preview = input().lower()
-    if show_preview in ['y', 'yes']:
-        show_image(preview)
-
-    # load the chunks in the region of the image
-    print(f'{Fore.YELLOW}Loading chunk data around the destination{Style.RESET_ALL}')
-    csz = me['canvases'][str(canv_id)]['size']
-    c_start_y = ((csz // 2) + draw_y) // 256
-    c_start_x = ((csz // 2) + draw_x) // 256
-    c_end_y = ((csz // 2) + draw_y + img.shape[0]) // 256
-    c_end_x = ((csz // 2) + draw_x + img.shape[1]) // 256
+    # start a WebSocket connection
+    print(f'{Fore.YELLOW}Connecting to the server{Style.RESET_ALL}')
+    ws = websocket.create_connection('wss://pixelplanet.fun:443/ws', header=extra_ws_headers,
+        http_proxy_host=config.proxy.host, http_proxy_port=config.proxy.port,
+        http_proxy_auth=(config.proxy.user, config.proxy.passwd))
+    select_canvas(ws, config.image.canv_id)
+    # load register chunks
+    csz = canv_desc['size']
+    c_start_y = ((csz // 2) + config.image.y) // 256
+    c_start_x = ((csz // 2) + config.image.x) // 256
+    c_end_y = ((csz // 2) + config.image.y + img.shape[0]) // 256
+    c_end_x = ((csz // 2) + config.image.x + img.shape[1]) // 256
     c_occupied_y = c_end_y - c_start_y + 1
     c_occupied_x = c_end_x - c_start_x + 1
-    chunk_data = get_chunks(canv_id, c_start_x, c_start_y, c_occupied_x, c_occupied_y)
-    # show them
-    show_chunks = ''
-    while show_chunks not in ['y', 'n', 'yes', 'no']:
-        print(f'{Fore.YELLOW}Show the area around the destination [y/n]?{Style.RESET_ALL} ', end='')
-        show_chunks = input().lower()
-    if show_chunks in ['y', 'yes']:
-        print(f'{Fore.YELLOW}Processing...{Style.RESET_ALL}')
-        show_image(render_map(canv_id, chunk_data))
-
-    start = ''
-    while start not in ['y', 'n', 'yes', 'no']:
-        print(f'{Fore.YELLOW}Draw {Fore.GREEN}{img_path}{Fore.YELLOW} ' +
-              f'at {Fore.GREEN}({draw_x}, {draw_y}){Fore.YELLOW} ' + 
-              f'on canvas {Fore.GREEN}{me["canvases"][str(canv_id)]["title"]} {Fore.YELLOW}[y/n]?{Style.RESET_ALL} ', end='')
-        start = input().lower()
-    # abort if user decided not to draw
-    if start not in ['y', 'yes']:
-        exit()
-
-    # start a WebSockets connection
-    print(f'{Fore.YELLOW}Connecting to the server{Style.RESET_ALL}')
-    ws = websocket.create_connection('wss://pixelplanet.fun:443/ws', header=extra_ws_headers, http_proxy_host=proxy_host, http_proxy_port=proxy_port)
-    select_canvas(ws, canv_id)
-    # register the chunks
+    chunk_data = get_chunks(config.image.canv_id, c_start_x, c_start_y, c_occupied_x, c_occupied_y)
     for c_y in range(c_occupied_y):
         for c_x in range(c_occupied_x):
-            register_chunk(ws, canv_id, c_x + c_start_x, c_y + c_start_y)
+            register_chunk(ws, config.image.canv_id, c_x + c_start_x, c_y + c_start_y)
     # start drawing
-    thr = threading.Thread(target=draw_function, args=(ws, canv_id, draw_x, draw_y, c_start_x, c_start_y, color_idxs, defend, strategy), name='Drawing thread')
+    thr = threading.Thread(target=draw_function, args=(
+            ws, config.image.canv_id, config.image.x, config.image.y,
+            c_start_x, c_start_y, color_idxs, config.image.defend, config.image.strategy),
+        name='Drawing thread')
     thr.start()
     # read server messages
     while True:
@@ -529,7 +541,7 @@ def main():
                 offs = (data[3] << 16) | (data[4] << 8) | data[5]
                 clr = data[6]
                 # convert it to X and Y coords
-                csz = me['canvases'][str(canv_id)]['size']
+                csz = me['canvases'][str(config.image.canv_id)]['size']
                 x = ((i * 256) - (csz // 2)) + (offs & 0xFF)
                 y = ((j * 256) - (csz // 2)) + ((offs >> 8) & 0xFF)
                 print(f'{Fore.YELLOW}Pixel update at {Fore.GREEN}({str(x)}, {str(y)}){Style.RESET_ALL}')
