@@ -43,8 +43,8 @@ if len(not_inst_libs) > 0:
 me = {}
 
 # the version of the bot
-VERSION     = '1.1.6'
-VERSION_NUM = 7
+VERSION     = '1.1.7'
+VERSION_NUM = 8
 
 # URLs of the current version and c.v. definitions
 BOT_URL    = 'https://raw.githubusercontent.com/portasynthinca3/ppfun2/master/ppfun2.py'
@@ -106,6 +106,8 @@ def get_chunk(d, x, y):
     data = requests.get(f'https://pixelplanet.fun/chunks/{d}/{x}/{y}.bmp').content
     # construct a numpy array from it
     arr = np.zeros((256, 256), np.uint8)
+    if len(data) != 65536:
+        return arr
     for i in range(65536):
         c = data[i]
         # protected pixels are shifted up by 128
@@ -245,15 +247,15 @@ def draw_function(ws, canv_id, draw_x, draw_y, c_start_x, c_start_y, img, defend
             # because water and land have seprate indicies, but the same color values
             #  as regular colors
             if canv_clr[chunk_data[start_in_d_y + y, start_in_d_x + x]] != canv_clr[img[y, x]]:
+                c_idx = img[y, x]
                 pixels_remaining = len(coords)
                 sec_per_px = (datetime.datetime.now() - start_time).total_seconds() / pixels_drawn
                 time_remaining = datetime.timedelta(seconds=(pixels_remaining * sec_per_px))
                 print(f'{Fore.YELLOW}Placing a pixel at {Fore.GREEN}({x + draw_x}, {y + draw_y})' + 
+                    f'{Fore.YELLOW}, color index: {Fore.GREEN}{c_idx}'
                     f'{Fore.YELLOW}, progress: {Fore.GREEN}{"{:2.4f}".format((y * size[0] + x) * 100 / (size[0] * size[1]))}%' +
                     f'{Fore.YELLOW}, remaining: {Fore.GREEN}{"estimating" if pixels_drawn < 20 else str(time_remaining)}' +
                     f'{Fore.YELLOW}, {Fore.GREEN}{pixels_drawn}{Fore.YELLOW} pixels placed{Style.RESET_ALL}')
-                # get the color index
-                c_idx = img[y, x]
                 # try to draw it
                 while not draw:
                     time.sleep(0.25)
@@ -501,8 +503,9 @@ def main():
             # data comes as a JS array
             msg = json.loads('{"msg":' + data + '}')
             msg = msg['msg']
-            print(f'{Fore.GREEN}{msg[0]}{Fore.YELLOW} (country: {Fore.GREEN}{msg[2]}{Fore.YELLOW}) ' + 
-                    f'says: {Fore.GREEN}{msg[1]}{Fore.YELLOW} in chat {Fore.GREEN}{"int" if msg[2] == 0 else "en"}{Style.RESET_ALL}')
+            if isinstance(msg, list): # it also could be a string, in which case it's our nickname
+                print(f'{Fore.GREEN}{msg[0]}{Fore.YELLOW} (country: {Fore.GREEN}{msg[2]}{Fore.YELLOW}) ' + 
+                      f'says: {Fore.GREEN}{msg[1]}{Fore.YELLOW} in chat {Fore.GREEN}{"int" if msg[2] == 0 else "en"}{Style.RESET_ALL}')
         # binary data = event
         else:
             opcode = data[0]
