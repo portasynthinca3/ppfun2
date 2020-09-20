@@ -43,8 +43,8 @@ if len(not_inst_libs) > 0:
 me = {}
 
 # the version of the bot
-VERSION     = '1.1.5'
-VERSION_NUM = 6
+VERSION     = '1.1.6'
+VERSION_NUM = 7
 
 # URLs of the current version and c.v. definitions
 BOT_URL    = 'https://raw.githubusercontent.com/portasynthinca3/ppfun2/master/ppfun2.py'
@@ -145,13 +145,20 @@ def render_chunk(d, x, y):
 # renders map data as a colored CV2 image
 def render_map(d, data):
     global me
-    img = np.zeros((data.shape[0], data.shape[1], 3), np.uint8)
+    img = np.zeros((data.shape[0], data.shape[1], 4), np.uint8)
     colors = me['canvases'][str(d)]['colors']
     # go through the data
     for y in range(data.shape[0]):
         for x in range(data.shape[1]):
-            r, g, b = colors[data[y, x]]
-            img[y, x] = (b, g, r)
+            if data[y, x] != 255:
+                r, g, b = colors[data[y, x]]
+                img[y, x] = (b, g, r, 255)
+            else:
+                # a checkerboard pattern in transparent parts of the image
+                if y % 20 < 10:
+                    img[y, x] = (32, 32, 32, 255) if x % 20 < 10 else (64, 64, 64, 255)
+                else:
+                    img[y, x] = (32, 32, 32, 255) if x % 20 > 10 else (64, 64, 64, 255)
     return img
 
 # selects a canvas for future use
@@ -441,6 +448,8 @@ def main():
                         best_no = i
                 # store the color idx
                 color_idxs[y, x] = best_no
+            else:
+                color_idxs[y, x] = 255
 
     # authorize
     extra_ws_headers = []
