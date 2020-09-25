@@ -11,9 +11,10 @@ import time, datetime, math, random
 import os.path as path, getpass
 
 try:
-    from playsound import playsound
+    from pydub import AudioSegment
+    from pydub.playback import play
 except ImportError:
-    not_inst_libs.append('playsound')
+    not_inst_libs.append('pydub')
 
 try:
     import numpy as np
@@ -43,10 +44,10 @@ if len(not_inst_libs) > 0:
 me = {}
 
 # the version of the bot
-VERSION     = '1.1.7'
-VERSION_NUM = 8
+VERSION     = '1.1.8'
+VERSION_NUM = 9
 
-# URLs of the current version and c.v. definitions
+# URLs of the current version and current version definition
 BOT_URL    = 'https://raw.githubusercontent.com/portasynthinca3/ppfun2/master/ppfun2.py'
 VERDEF_URL = 'https://raw.githubusercontent.com/portasynthinca3/ppfun2/master/verdef'
 
@@ -90,8 +91,9 @@ class PpfunConfig(object):
 config = None
 
 # play a notification sound
+segm = AudioSegment.from_mp3('notif.mp3')
 def play_notification():
-    playsound('notif.mp3')
+    play(segm)
 
 # shows the image in a window
 def show_image(img):
