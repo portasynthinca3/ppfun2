@@ -21,10 +21,10 @@ except ImportError:
     not_inst_libs.append('requests')
 
 try:
-    from pydub import AudioSegment
-    from pydub.playback import play
+    import pyaudio
+    import wave
 except ImportError:
-    not_inst_libs.append('pydub')
+    not_inst_libs.append('PyAudio')
 
 try:
     import numpy as np
@@ -68,10 +68,10 @@ if not path.exists('notif.wav'):
 me = {}
 
 # the version of the bot
-VERSION          = '1.1.10'
-VERSION_NUM      = 11
+VERSION          = '1.1.11'
+VERSION_NUM      = 12
 VERSION_DATE     = '25 sept. 2020, 16:53 UTC'
-VERSION_FEATURES = ' - prints the date and features of this release'
+VERSION_FEATURES = ' - move to a new audio library (again)'
 
 # are we allowed to draw
 draw = True
@@ -113,9 +113,21 @@ class PpfunConfig(object):
 config = None
 
 # play a notification sound
-segm = AudioSegment.from_wav('notif.wav')
 def play_notification():
-    play(segm)
+    wf = wave.open('notif.wav', 'rb')
+    pa = pyaudio.PyAudio()
+    stream = pa.open(format=pa.get_format_from_width(wf.getsampwidth()),
+                     channels=wf.getnchannels(),
+                     rate=wf.getframerate(),
+                     output=True)
+    data = wf.readframes(128)
+    while len(data) > 0:
+        stream.write(data)
+        data = wf.readframes(128)
+
+    stream.stop_stream()
+    stream.close()
+    pa.terminate()
 
 # shows the image in a window
 def show_image(img):
