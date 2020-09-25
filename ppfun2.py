@@ -68,8 +68,10 @@ if not path.exists('notif.wav'):
 me = {}
 
 # the version of the bot
-VERSION     = '1.1.9'
-VERSION_NUM = 10
+VERSION          = '1.1.10'
+VERSION_NUM      = 11
+VERSION_DATE     = '25 sept. 2020, 16:53 UTC'
+VERSION_FEATURES = ' - prints the date and features of this release'
 
 # are we allowed to draw
 draw = True
@@ -334,7 +336,10 @@ def main():
     init()
 
     # get the version on the server
-    print(f'{Fore.YELLOW}PixelPlanet bot by portasynthinca3 version {Fore.GREEN}{VERSION}{Fore.YELLOW}\nChecking for updates{Style.RESET_ALL}')
+    print(f'{Fore.YELLOW}PixelPlanet bot by portasynthinca3 version {Fore.GREEN}{VERSION}{Fore.YELLOW}' +
+        f' released on {Fore.GREEN}{VERSION_DATE}{Fore.YELLOW}' + 
+        f'\nNew features in this version: \n{Fore.GREEN}{VERSION_FEATURES}{Fore.YELLOW}'
+        f'\nChecking for updates{Style.RESET_ALL}')
     server_verdef = requests.get(VERDEF_URL).text
     if int(server_verdef.split('\n')[1]) > VERSION_NUM:
         # update
@@ -346,7 +351,7 @@ def main():
         exit()
     else:
         print(f'{Fore.YELLOW}You\'re running the latest version{Style.RESET_ALL}')
-        print(f'{Fore.RED}WARNING: THIS IS A DEEPLY EXPERIMENTAL UPDATE. Please email/discord me if you find ANY issues. Feel free to remove the auto-update section (starting around line 306) and downgrade manually, though{Style.RESET_ALL}')
+        print(f'{Fore.RED}WARNING: THIS IS A DEEPLY EXPERIMENTAL UPDATE. Feel free to email/discord me if you find ANY issues.{Style.RESET_ALL}')
 
     # get canvas info list and user identifier
     print(f'{Fore.YELLOW}Requesting initial data{Style.RESET_ALL}')
