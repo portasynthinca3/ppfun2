@@ -6,9 +6,19 @@
 not_inst_libs = []
 
 import sys, threading
-import requests, json, pickle
+import json, pickle
 import time, datetime, math, random
 import os.path as path, getpass
+
+# URLs of various files
+BOT_URL    = 'https://raw.githubusercontent.com/portasynthinca3/ppfun2/master/ppfun2.py'
+VERDEF_URL = 'https://raw.githubusercontent.com/portasynthinca3/ppfun2/master/verdef'
+SOUND_URL  = 'https://raw.githubusercontent.com/portasynthinca3/ppfun2/master/notif.wav'
+
+try:
+    import requests
+except ImportError:
+    not_inst_libs.append('requests')
 
 try:
     from pydub import AudioSegment
@@ -41,15 +51,25 @@ if len(not_inst_libs) > 0:
     print('Some libraries are not installed. Install them by running this command:\npip install ' + ' '.join(not_inst_libs))
     exit()
 
+def download_file(url):
+    local_filename = url.split('/')[-1]
+    r = requests.get(url, stream=True)
+    with open(local_filename, 'wb') as f:
+        for chunk in r.iter_content(chunk_size=1024): 
+            if chunk:
+                f.write(chunk)
+    return local_filename
+
+# check the presence of the sound notification file
+if not path.exists('notif.wav'):
+    print('notif.wav is not present, downloading...')
+    download_file(SOUND_URL)
+
 me = {}
 
 # the version of the bot
-VERSION     = '1.1.8'
-VERSION_NUM = 9
-
-# URLs of the current version and current version definition
-BOT_URL    = 'https://raw.githubusercontent.com/portasynthinca3/ppfun2/master/ppfun2.py'
-VERDEF_URL = 'https://raw.githubusercontent.com/portasynthinca3/ppfun2/master/verdef'
+VERSION     = '1.1.9'
+VERSION_NUM = 10
 
 # are we allowed to draw
 draw = True
@@ -91,7 +111,7 @@ class PpfunConfig(object):
 config = None
 
 # play a notification sound
-segm = AudioSegment.from_mp3('notif.mp3')
+segm = AudioSegment.from_wav('notif.wav')
 def play_notification():
     play(segm)
 

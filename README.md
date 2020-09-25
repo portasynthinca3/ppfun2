@@ -10,7 +10,7 @@
 It draws and defends images automatically. You only need to enter captcha occasionally when the bot plays a sound notification.
 
 # Setting up
-1. Click the green button with a download icon and a `Code` text in it. Click `Download ZIP`. Download the ZIP archive and unpack it. You will only need `notif.mp3` and `ppfun2.py` files, the rest can be deleted. Alternatively, if you have Git installed, run `git clone https://github.com/portasynthinca3/ppfun2.git`
+1. Click the green button with a download icon and a `Code` text in it. Click `Download ZIP`. Download the ZIP archive and unpack it. You will only need `notif.wav` and `ppfun2.py` files, the rest can be deleted. Alternatively, if you have Git installed, run `git clone https://github.com/portasynthinca3/ppfun2.git`
 2. Install Python
     1. Windows. [Download](https://www.python.org/downloads/) an installer. Run it. Be sure to check the `Add Python to PATH` checkmark on the first screen.
     2. Linux. Depends on your distribution and the packet manager you use. For most popular distros including Ubuntu it's `sudo apt install python`, for Manjaro it's `sudo pacman -S python`.
