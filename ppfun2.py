@@ -68,10 +68,10 @@ if not path.exists('notif.wav'):
 me, thr, ws = {}, None, None
 
 # the version of the bot
-VERSION          = '1.1.12'
-VERSION_NUM      = 13
-VERSION_DATE     = 'nov. 10th 2020, 16:53 UTC'
-VERSION_FEATURES = ' - reconnect after disconnecting'
+VERSION          = '1.1.13'
+VERSION_NUM      = 14
+VERSION_DATE     = 'nov. 10th 2020, 7:35 UTC'
+VERSION_FEATURES = ' - hotfix: CAPTCHA errors don\'t block the drawing thread'
 
 # are we allowed to draw
 draw = True
@@ -572,7 +572,7 @@ def main():
                         play_notification()
                         print(Fore.RED + 'Place a pixel somewhere manually and enter CAPTCHA' + Style.RESET_ALL)
                     # any error
-                    elif rc != 0:
+                    if rc != 0:
                         time.sleep(2)
                         succ = False
                         draw = True
