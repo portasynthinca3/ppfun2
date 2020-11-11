@@ -68,10 +68,10 @@ if not path.exists('notif.wav'):
 me, thr, ws = {}, None, None
 
 # the version of the bot
-VERSION          = '1.1.13'
-VERSION_NUM      = 14
-VERSION_DATE     = 'nov. 10th 2020, 7:35 UTC'
-VERSION_FEATURES = ' - hotfix: CAPTCHA errors don\'t block the drawing thread'
+VERSION          = '1.1.14'
+VERSION_NUM      = 15
+VERSION_DATE     = 'nov. 11th 2020, 3:28 UTC'
+VERSION_FEATURES = ' - hotfix: reset some global vars after reconnecting'
 
 # are we allowed to draw
 draw = True
@@ -610,6 +610,8 @@ def main():
         except websocket.WebSocketConnectionClosedException:
             print(f'{Fore.RED}Disconnected, trying to reconnect in 5s{Style.RESET_ALL}')
             time.sleep(5)
+            succ = False
+            draw = True
         except KeyboardInterrupt:
             print(f'{Fore.RED}Interrupting{Style.RESET_ALL}')
             sys.exit()
