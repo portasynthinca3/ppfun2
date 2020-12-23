@@ -68,10 +68,10 @@ if not path.exists('notif.wav'):
 me, thr, ws = {}, None, None
 
 # the version of the bot
-VERSION          = '1.1.14'
-VERSION_NUM      = 15
-VERSION_DATE     = 'nov. 11th 2020, 3:28 UTC'
-VERSION_FEATURES = ' - hotfix: reset some global vars after reconnecting'
+VERSION          = '1.1.15'
+VERSION_NUM      = 16
+VERSION_DATE     = 'Dec. 23rd 2020'
+VERSION_FEATURES = ' - new drawing modes: rtl and ltr (Right-To-Left and Left-To-Right)'
 
 # are we allowed to draw
 draw = True
@@ -255,6 +255,14 @@ def draw_function(ws, canv_id, draw_x, draw_y, c_start_x, c_start_y, img, defend
             for y in range(size[0] - 1, -1, -1):
                 for x in range(size[1] - 1, -1, -1):
                     coords.append((x, y))
+        elif strategy == 'rtl':
+            for x in range(size[1] - 1, -1, -1):
+                for y in range(size[0]):
+                    coords.append((x, y))
+        elif strategy == 'ltr':
+            for x in range(size[1]):
+                for y in range(size[0]):
+                    coords.append((x, y))
         elif strategy == 'random':
             for y in range(size[0]):
                 for x in range(size[1]):
@@ -412,10 +420,10 @@ def main():
         config.image.defend = config.image.defend if config.image.defend in ['y', 'yes'] else False
 
         # choose a strategy
-        strategies = ['forward', 'backward', 'random']
+        strategies = ['forward', 'backward', 'random', 'rtl', 'ltr']
         config.image.strategy = None
         while config.image.strategy not in strategies:
-            print(f'{Fore.YELLOW}Choose the drawing strategy [forward/backward/random]:{Style.RESET_ALL} ', end='')
+            print(f'{Fore.YELLOW}Choose the drawing strategy [forward/backward/random/rtl/ltr]:{Style.RESET_ALL} ', end='')
             config.image.strategy = input().lower()
         
         # choose the canvas
