@@ -68,10 +68,10 @@ if not path.exists('notif.wav'):
 me, thr, ws = {}, None, None
 
 # the version of the bot
-VERSION          = '1.1.15'
-VERSION_NUM      = 16
-VERSION_DATE     = 'Dec. 23rd 2020'
-VERSION_FEATURES = ' - new drawing modes: rtl and ltr (Right-To-Left and Left-To-Right)'
+VERSION          = '1.1.16'
+VERSION_NUM      = 17
+VERSION_DATE     = 'Oct. 22, 2021'
+VERSION_FEATURES = '  - proper status indication (thanks to Rem-u)'
 
 # are we allowed to draw
 draw = True
