@@ -48,7 +48,7 @@ except ImportError:
 
 # tell the user to install libraries
 if len(not_inst_libs) > 0:
-    print('Some libraries are not installed. Install them by running this command:\npip install ' + ' '.join(not_inst_libs))
+    print('Some libraries are not installed. Install them by running this command:\npython -m pip install ' + ' '.join(not_inst_libs))
     exit()
 
 def download_file(url):
