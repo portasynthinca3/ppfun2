@@ -53,7 +53,7 @@ if len(not_inst_libs) > 0:
 
 def download_file(url):
     local_filename = url.split('/')[-1]
-    r = requests.get(url, stream=True)
+    r = sess.get(url, stream=True)
     with open(local_filename, 'wb') as f:
         for chunk in r.iter_content(chunk_size=1024): 
             if chunk:
@@ -139,7 +139,7 @@ def show_image(img):
 # gets raw chunk data from the server
 def get_chunk(d, x, y):
     # get data from the server
-    data = requests.get(f'https://pixelplanet.fun/chunks/{d}/{x}/{y}.bmp').content
+    data = sess.get(f'https://pixelplanet.fun/chunks/{d}/{x}/{y}.bmp').content
     # construct a numpy array from it
     arr = np.zeros((256, 256), np.uint8)
     if len(data) != 65536:
@@ -353,7 +353,10 @@ def draw_function(ws, canv_id, draw_x, draw_y, c_start_x, c_start_y, img, defend
         return
 
 def main():
-    global me, draw, succ, chunk_data, config
+    global me, draw, succ, chunk_data, config, sess
+    sess = requests.Session()
+    sess.headers['user-agent'] = "Copium"
+    print(sess.headers['user-agent'])
     # initialize colorama
     init()
 
@@ -362,13 +365,13 @@ def main():
         f' released on {Fore.GREEN}{VERSION_DATE}{Fore.YELLOW}' + 
         f'\nNew features in this version: \n{Fore.GREEN}{VERSION_FEATURES}{Fore.YELLOW}'
         f'\nChecking for updates{Style.RESET_ALL}')
-    server_verdef = requests.get(VERDEF_URL).text
+    server_verdef = sess.get(VERDEF_URL).text
     if int(server_verdef.split('\n')[1]) > VERSION_NUM:
         # update
         server_ver = server_verdef.split('\n')[0]
         print(f'{Fore.YELLOW}There\'s a new version {Fore.GREEN}{server_ver}{Fore.YELLOW} on the server. Downloading{Style.RESET_ALL}')
         with open('ppfun2.py', 'wb') as bot_file:
-            bot_file.write(requests.get(BOT_URL).content)
+            bot_file.write(sess.get(BOT_URL).content)
         print(f'{Fore.YELLOW}Please start the bot again{Style.RESET_ALL}')
         exit()
     else:
@@ -376,7 +379,7 @@ def main():
 
     # get canvas info list and user identifier
     print(f'{Fore.YELLOW}Requesting initial data{Style.RESET_ALL}')
-    me = requests.get('https://pixelplanet.fun/api/me').json()
+    me = sess.get('https://pixelplanet.fun/api/me').json()
 
     # try to load the config file
     try:
@@ -505,7 +508,7 @@ def main():
     extra_ws_headers = []
     if config.auth.login != '':
         print(f'{Fore.YELLOW}Authorizing{Style.RESET_ALL}')
-        response = requests.post('https://pixelplanet.fun/api/auth/local', json={
+        response = sess.post('https://pixelplanet.fun/api/auth/local', json={
             'nameoremail':config.auth.login,
             'password':config.auth.passwd
         })
@@ -592,6 +595,7 @@ def main():
                         draw = True
                     # success
                     else:
+                        # if wait >= 59*1000::
                         if wait >= 30000:
                             print(f'{Fore.YELLOW}Cooling down{Style.RESET_ALL}')
                             # wait that many seconds plus 1 (to be sure)
